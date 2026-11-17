@@ -60,6 +60,31 @@ cargo build --release
 The replication files are the authors' and are not included (see `NOTICE.md`); they are in the `MonteCarlo`
 folder of `Bonhomme_Manresa_codes`, on [Stéphane Bonhomme's website](https://sites.google.com/site/stephanebonhommeresearch/).
 
-## Results
+## Results (Table S.VIII, G0 = 10; 100 samples; `scripts/summarize_table_s8.py`)
 
-Being added as the run finishes.
+For each of the authors' 100 simulated samples and G = 3 to 15, the run computed the objective of the authors'
+grouping, of a local search and a neighbourhood search started from it, of Algorithm 1 with 1,000 random starts,
+and of Algorithm 2 from random starts (about 3.3 minutes per sample on 2 cores). The BIC choice of G, computed as
+`BIC_G10_MC.m` does (σ̂² from each sample's G = 15 fit, averaged over the samples), with each set of objectives
+(`output/table_s8_bic_choices.csv`):
+
+| Objective used | σ̂² | G = 7 | G = 8 | G = 9 | G = 10 | G = 11 | G = 12 |
+|---|---|---|---|---|---|---|---|
+| The authors' groupings | 0.01556 | 0 | 10 | 42 | 42 | 6 | 0 |
+| Algorithm 1, 1,000 starts | 0.01611 | 1 | 19 | 45 | 32 | 3 | 0 |
+| Algorithm 2 from random starts | 0.01567 | 0 | 13 | 47 | 33 | 6 | 1 |
+| The best of all searches | 0.01556 | 0 | 9 | 46 | 40 | 5 | 0 |
+| Published (%) | | 0 | 10 | 42 | 42 | 6 | 0 |
+
+- **The authors' groupings are good but not global optima.** Some search found a lower objective than theirs in
+  6% of samples at G = 3, 26–37% at G = 6 to 14, and 1% at G = 15 (`output/table_s8_improvement.csv`; mean
+  improvement 0.004–0.044, largest 0.46).
+- **The published distribution survives better fits.** Because the improvements at G = 15 are negligible, σ̂²
+  and the penalty are unchanged, and the best fits move only a few samples (G = 9 in 46 instead of 42, G = 10 in
+  40 instead of 42).
+- **The search matters through σ̂².** Algorithm 1 even with 1,000 starts never reaches the best objective from
+  G = 13 on, so its σ̂² is 3.5% too high and its choices shift down (G = 10 in 32 samples). The neighbourhood
+  search from random starts finds the best at G = 15 in only a third of samples. A strong search at the largest
+  G, where σ̂² comes from, matters more for the BIC than a strong search at the candidate values.
+
+The CSV holds objective values only; the authors' samples and groupings are not redistributed (`NOTICE.md`).

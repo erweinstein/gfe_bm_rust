@@ -1,0 +1,6 @@
+objective,sigma2_hat,G6,G7,G8,G9,G10,G11,G12
+The authors' groupings,0.01556,0,0,10,42,42,6,0
+"Algorithm 1, 1,000 starts",0.01611,0,1,19,45,32,3,0
+Algorithm 2 (VNS) from random starts,0.01567,0,0,13,47,33,6,1
+The best of all searches,0.01556,0,0,9,46,40,5,0
+"Published (Table S.VIII, %)",,0,0,10,42,42,6,0
