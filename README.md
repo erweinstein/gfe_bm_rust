@@ -43,6 +43,8 @@ the grouping g. Given g, Î¸ comes from the within-(group, time) regression and Î
   each sample and G = 3 to 15, the objective of their grouping, of a local search and a neighborhood search from
   it, of Algorithm 1, and of Algorithm 2.
 - `run_table_s8.sh`: runs it sample by sample, resumably, into `output/table_s8_search.csv`.
+- `docs/what_rust_changed.md`: what the Rust version bought, with timings against the Python translation and a
+  C++ (Rcpp) port of the same code.
 
 Checks: on the authors' first sample, the least-squares step gives their grouping's objective to 13 digits
 (18.7959402077 at G = 3, as in the Python translation), and from the Python translation's random starts Algorithm 1
