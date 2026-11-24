@@ -38,17 +38,27 @@ the grouping g. Given g, θ comes from the within-(group, time) regression and �
 - `src/lib.rs`: the panel type; least squares given a grouping (`update`, `objective`); Algorithm 1 from a start
   (`alg1_run`, stopping when the assignment no longer changes) and with random starts (`alg1`; θ ~ N(0, I), α from
   G random units, as in the authors' code); a local search of single-unit moves (`local_search`); and the
-  neighborhood search of Algorithm 2 (`vns`, or `vns_from` a given grouping).
+  neighborhood search of Algorithm 2 (`vns`, or `vns_from` a given grouping). Added 24 November 2026:
+  `local_search_incremental`, the same search with each trial move's objective computed from sufficient
+  statistics, as in the Python translation's `gfe_local_search` (a move changes two groups' sums, so it costs
+  O(T(K + 1)²) operations instead of a pass over the panel), and `vns_with` / `vns_from_with`, which take either.
 - `src/main.rs`: `gfe_bm_rust table_s8`, which reads the authors' Monte Carlo files for G0 = 10 and reports, for
   each sample and G = 3 to 15, the objective of their grouping, of a local search and a neighborhood search from
   it, of Algorithm 1, and of Algorithm 2.
 - `run_table_s8.sh`: runs it sample by sample, resumably, into `output/table_s8_search.csv`.
+- `run_table_s8_all.sh` (added 24 November 2026): the whole table in one call, with the incremental local search,
+  into `output/table_s8_search_incremental.csv`. `table_s8 ... --out <file>` puts all (sample, G) jobs in one
+  queue, largest G first, shared by every thread; appends each row as it finishes; and skips the jobs already in
+  the file, so a stopped call resumes where it stopped. `--incremental` selects the faster local search.
 - `docs/what_rust_changed.md`: what the Rust version bought, with timings against the Python translation and a
   C++ (Rcpp) port of the same code.
 
 Checks: on the authors' first sample, the least-squares step gives their grouping's objective to 13 digits
 (18.7959402077 at G = 3, as in the Python translation), and from the Python translation's random starts Algorithm 1
-converges to the same objectives (18.9191, 20.0658, 18.8115).
+converges to the same objectives (18.9191, 20.0658, 18.8115). The incremental local search gives the same
+table: run over all 1,300 (sample, G) jobs, all six objectives agree with `output/table_s8_search.csv` in every
+printed digit (10 decimals), because it makes the same moves in the same order with the same tolerance. That run
+also tested the restart: it was stopped after 90 seconds (146 jobs written) and resumed with the same command.
 
 ## Running it
 
@@ -57,6 +67,7 @@ Rust 1.97 (cargo); crates rand 0.8, rand_xoshiro 0.6 and rayon 1.10, fetched by 
 ```
 cargo build --release
 ./run_table_s8.sh <folder with inputMCXG10_BIC.txt, inputMCYG10_BIC.txt and assignmentG010G3.txt ... G15.txt>
+./run_table_s8_all.sh <the same folder>            # one call, incremental local search
 ```
 
 The replication files are the authors' and are not included (see `NOTICE.md`); they are in the `MonteCarlo`

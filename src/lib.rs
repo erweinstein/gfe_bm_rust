@@ -140,6 +140,111 @@ impl Panel {
         self.update(&groups, g).unwrap()
     }
 
+    /// the same local search with the objective computed from sufficient statistics, as in gfe_bm_python's
+    /// gfe_local_search (and the authors' Brusco_cov.f90): with z_it = (y_it, x_it')', S_gs = sum_{i in g} z_is and
+    /// n_gs the group sizes, the within-(group, time) cross products are M = sum_it z_it z_it' - sum_gs S_gs S_gs' / n_gs
+    /// and Q = M_yy - M_yx M_xx^{-1} M_xy. A move changes two groups' S, so it costs O(T (K+1)^2) operations
+    /// instead of a pass over the whole panel. Same moves, same order and same tolerance as `local_search`; the
+    /// objective it returns is recomputed directly (by `update`) at the end. Added 24 November 2026.
+    pub fn local_search_incremental(&self, mut groups: Vec<usize>, g: usize) -> Fit {
+        let (n, t, k) = (self.n, self.t, self.k); let k1 = k + 1; let kk = k1 * k1;
+        let z = |i: usize, s: usize, c: usize| if c == 0 { self.y[i * t + s] } else { self.x[(i * t + s) * k + c - 1] };
+        let mut w = vec![0.0; kk];
+        for i in 0..n { for s in 0..t { for a in 0..k1 { for b in 0..k1 { w[a * k1 + b] += z(i, s, a) * z(i, s, b); } } } }
+        let mut sg = vec![0.0; g * t * k1]; let mut cnt = vec![0usize; g];
+        for i in 0..n { cnt[groups[i]] += 1; for s in 0..t { for c in 0..k1 { sg[(groups[i] * t + s) * k1 + c] += z(i, s, c); } } }
+        // between cross products of one group from its sums (t x k1) and size
+        let between = |sums: &[f64], m: usize, out: &mut [f64]| {
+            for v in out.iter_mut() { *v = 0.0; }
+            if m == 0 { return; }
+            let inv = 1.0 / m as f64;
+            for s in 0..t { let r = &sums[s * k1..(s + 1) * k1];
+                for a in 0..k1 { let ra = r[a] * inv; for b in a..k1 { out[a * k1 + b] += ra * r[b]; } } }
+            for a in 0..k1 { for b in 0..a { out[a * k1 + b] = out[b * k1 + a]; } }
+        };
+        let mut bg = vec![0.0; g * kk];
+        for gg in 0..g { let (lo, hi) = (gg * t * k1, (gg + 1) * t * k1); let sums = sg[lo..hi].to_vec();
+            between(&sums, cnt[gg], &mut bg[gg * kk..(gg + 1) * kk]); }
+        let mut m = w.clone(); for gg in 0..g { for e in 0..kk { m[e] -= bg[gg * kk + e]; } }
+        let obj_of = |m: &[f64]| -> f64 {
+            match k {
+                0 => m[0],
+                1 => if m[k1 + 1] <= 1e-12 * m[0].abs() { f64::INFINITY } else { m[0] - m[k1] * m[k1] / m[k1 + 1] },
+                2 => { let (a, b, c) = (m[k1 + 1], m[k1 + 2], m[2 * k1 + 2]); let det = a * c - b * b;
+                       if det <= 1e-12 * a * c { return f64::INFINITY; }
+                       let (u, v) = (m[k1], m[2 * k1]); m[0] - (c * u * u - 2.0 * b * u * v + a * v * v) / det }
+                _ => { let mut a = vec![0.0; k * k]; let mut b = vec![0.0; k];
+                       for r in 0..k { b[r] = m[(r + 1) * k1]; for c in 0..k { a[r * k + c] = m[(r + 1) * k1 + c + 1]; } }
+                       let bb = b.clone();
+                       match solve(&mut a, &mut b, k) { Some(x) => m[0] - (0..k).map(|r| bb[r] * x[r]).sum::<f64>(), None => f64::INFINITY } }
+            }
+        };
+        let mut obj = obj_of(&m);
+        let mut zi = vec![0.0; t * k1]; let mut s0 = vec![0.0; t * k1]; let mut s1 = vec![0.0; t * k1];
+        let mut b0 = vec![0.0; kk]; let mut b1 = vec![0.0; kk]; let mut mn = vec![0.0; kk];
+        let mut keep_s = vec![0.0; t * k1]; let mut keep_b = vec![0.0; kk]; let mut keep_m = vec![0.0; kk];
+        loop {
+            let mut improved = false;
+            for i in 0..n {
+                let g0 = groups[i]; if cnt[g0] <= 1 { continue; }
+                for s in 0..t { for c in 0..k1 { zi[s * k1 + c] = z(i, s, c); } }
+                for e in 0..t * k1 { s0[e] = sg[g0 * t * k1 + e] - zi[e]; }
+                between(&s0, cnt[g0] - 1, &mut b0);
+                let mut best = (obj, g0);
+                for gg in 0..g { if gg == g0 { continue; }
+                    for e in 0..t * k1 { s1[e] = sg[gg * t * k1 + e] + zi[e]; }
+                    between(&s1, cnt[gg] + 1, &mut b1);
+                    for e in 0..kk { mn[e] = m[e] + bg[g0 * kk + e] + bg[gg * kk + e] - b0[e] - b1[e]; }
+                    let o = obj_of(&mn);
+                    if o < best.0 - 1e-10 * best.0.abs().max(1.0) { best = (o, gg);
+                        keep_s.copy_from_slice(&s1); keep_b.copy_from_slice(&b1); keep_m.copy_from_slice(&mn); }
+                }
+                if best.1 != g0 {
+                    let g1 = best.1;
+                    sg[g0 * t * k1..(g0 + 1) * t * k1].copy_from_slice(&s0); bg[g0 * kk..(g0 + 1) * kk].copy_from_slice(&b0);
+                    sg[g1 * t * k1..(g1 + 1) * t * k1].copy_from_slice(&keep_s); bg[g1 * kk..(g1 + 1) * kk].copy_from_slice(&keep_b);
+                    m.copy_from_slice(&keep_m); obj = best.0;
+                    groups[i] = g1; cnt[g0] -= 1; cnt[g1] += 1; improved = true;
+                }
+            }
+            if !improved { break; }
+        }
+        self.update(&groups, g).unwrap()
+    }
+
+    /// `vns_from` with a choice of local search (`incremental` = true uses `local_search_incremental`)
+    pub fn vns_from_with<R: Rng>(&self, groups: Vec<usize>, g: usize, neighmax: usize, itermax: usize, rng: &mut R, incremental: bool) -> Fit {
+        let ls = |gr: Vec<usize>| if incremental { self.local_search_incremental(gr, g) } else { self.local_search(gr, g) };
+        let mut best = ls(groups);
+        let mut stale = 0;
+        while stale < itermax {
+            let mut improved = false;
+            let mut nb = 1;
+            while nb <= neighmax {
+                let mut cand = best.groups.clone();
+                let mut cnt = vec![0usize; g]; for &gi in &cand { cnt[gi] += 1; }
+                for _ in 0..nb {
+                    let i = rng.gen_range(0..self.n); if cnt[cand[i]] <= 1 { continue; }
+                    let mut gg = rng.gen_range(0..g); while gg == cand[i] { gg = rng.gen_range(0..g); }
+                    cnt[cand[i]] -= 1; cand[i] = gg; cnt[gg] += 1;
+                }
+                let f0 = self.update(&cand, g).unwrap();
+                let f1 = self.alg1_run(f0.theta, f0.alpha, g, 1000).unwrap_or(best.clone());
+                let f2 = ls(f1.groups);
+                if f2.objective < best.objective - 1e-10 * best.objective.abs().max(1.0) { best = f2; improved = true; nb = 1; }
+                else { nb += 1; }
+            }
+            if improved { stale = 0; } else { stale += 1; }
+        }
+        best
+    }
+
+    /// `vns` with a choice of local search
+    pub fn vns_with<R: Rng>(&self, g: usize, starts: usize, neighmax: usize, itermax: usize, rng: &mut R, incremental: bool) -> Fit {
+        let a1 = self.alg1(g, starts, rng);
+        self.vns_from_with(a1.groups, g, neighmax, itermax, rng, incremental)
+    }
+
     /// Algorithm 2 (variable neighborhood search), as in the authors' Fortran: from the best of `starts` Algorithm 1
     /// runs, repeat: jump to a random neighbour (relocate n units, n = 1..neighmax), run Algorithm 1 and the local
     /// search from it, keep it if better, else widen the neighbourhood; stop after itermax rounds without improvement
