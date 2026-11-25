@@ -101,3 +101,12 @@ and of Algorithm 2 from random starts (about 3.3 minutes per sample on 2 cores).
   G, where σ̂² comes from, matters more for the BIC than a strong search at the candidate values.
 
 The CSV holds objective values only; the authors' samples and groupings are not redistributed (`NOTICE.md`).
+
+## License
+
+Licensed under either of the Apache License, Version 2.0 (`LICENSE-APACHE`) or the MIT license (`LICENSE-MIT`), at
+your option. The estimator, its algorithms and the replication files are Bonhomme and Manresa's; `NOTICE.md` gives
+the scope of the license and the credit.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you,
+as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.

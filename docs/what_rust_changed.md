@@ -96,8 +96,9 @@ objectives; beyond 2 cores nothing was measured.
 - **The 81× is against my Python code as written.** Python's local search loops over units and groups in Python
   and calls NumPy for each 3 × 3 update. Evaluating all G − 1 candidate groups for a unit in one vectorized call,
   or compiling the loop with Numba, would narrow the gap; I have not tried either.
-- **A metadata inconsistency.** `Cargo.toml` declares `license = "MIT"`, while `LICENSE` and `NOTICE.md` say BSD
-  3-Clause. One of them should be fixed before anyone depends on the crate.
+- **A metadata inconsistency, now fixed.** `Cargo.toml` declared `license = "MIT"` while `LICENSE` and `NOTICE.md`
+  said BSD 3-Clause. Since 25 November 2026 the crate is licensed under MIT OR Apache-2.0, the Rust ecosystem's
+  usual choice, and all three agree.
 
 ## References
 

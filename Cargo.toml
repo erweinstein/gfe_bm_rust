@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Eliot R. Weinstein <eliotw@uchicago.edu>"]
 description = "Grouped fixed-effects (Bonhomme and Manresa 2015) estimation in Rust: Algorithm 1, local search and variable neighborhood search"
-license = "MIT"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 rand = "0.8"
