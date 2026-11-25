@@ -79,8 +79,9 @@ its longest (G = 15). Simulating that schedule from the measured job times gives
 number of cores. Since 24 November, `run_table_s8_all.sh` puts all 1,300 jobs in one queue, largest G first;
 the same simulation then gives 2.0× on 2 cores, 4.0× on 4, 15.9× on 16 and 63× on 64, because the longest job
 (under a second with the incremental search) is small next to the total (about 8.5 minutes on one thread). The
-simulation leaves out memory bandwidth, caches and clock speed, so it is an upper bound; beyond 2 cores nothing
-was measured.
+simulation leaves out memory bandwidth, caches and clock speed, so it is an upper bound. On the 2-core container
+one call over samples 1–12 (156 jobs) took 55.9 s on one thread and 28.0 s on two (2.00×), with identical
+objectives; beyond 2 cores nothing was measured.
 
 ## Possible problems
 
